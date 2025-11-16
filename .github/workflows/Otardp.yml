@@ -24,6 +24,7 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64-signed.exe" -OutFile "$env:USERPROFILE\playit.exe"
 
       - name: Abre RDP e cria usuário
+      - name: Abre RDP e cria usuário
         shell: pwsh
         run: |
           # 1) Habilita RDP
@@ -31,14 +32,14 @@ jobs:
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
           netsh advfirewall firewall add rule name="Open 3389" dir=in action=allow protocol=TCP localport=3389
 
-          # 2) Cria usuário local admin (net user nunca falha)
-          net user playit playit123! /add /passwordchg:no /expires:never
+          # 2) Cria usuário com senha forte
+          net user playit "Playit@2024!Secure" /add /passwordchg:no /expires:never
           net localgroup administrators playit /add
 
           # 3) Autologon
           Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name AutoAdminLogon -Value 1
           Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name DefaultUserName -Value "playit"
-          Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name DefaultPassword -Value "playit123!"
+          Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name DefaultPassword -Value "Playit@2024!Secure"
 
       - name: Inicia Playit no POP São Paulo
         shell: pwsh
