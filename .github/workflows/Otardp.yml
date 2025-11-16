@@ -1,0 +1,57 @@
+name: Playit RDP Brasil – Windows Server 2022
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rdp-br:
+    runs-on: windows-latest   # sempre Server 2022; não dá pra escolher build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Desbloqueia tudo
+        shell: pwsh
+        run: |
+          Set-MpPreference -DisableRealtimeMonitoring $true
+          netsh advfirewall set allprofiles state off
+          Set-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name EnableLUA -Value 0
+
+      - name: Instala Playit
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64-signed.exe" -OutFile "$env:USERPROFILE\playit.exe"
+
+      - name: Abre RDP
+        shell: pwsh
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
+          netsh advfirewall firewall add rule name="Open 3389" dir=in action=allow protocol=TCP localport=3389
+          $pass = ConvertTo-SecureString "playit123!" -AsPlainText -Force
+          New-LocalUser -Name "playit" -Password $pass -FullName "Playit User" -PasswordNeverExpires
+          Add-LocalGroupMember -Group "Administrators" -Member "playit"
+          Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name AutoAdminLogon -Value 1
+          Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name DefaultUserName -Value "playit"
+          Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name DefaultPassword -Value "playit123!"
+
+      - name: Inicia Playit no POP São Paulo
+        shell: pwsh
+        env:
+          PLAYIT_AUTH_KEY: ${{ secrets.PL }}
+        run: |
+          $playit = "$env:USERPROFILE\playit.exe"
+          # --region sao-paulo-br força saída no Brasil
+          Start-Process -FilePath $playit -ArgumentList "--secret",$env:PLAYIT_AUTH_KEY,"--region","sao-paulo-br" -NoNewWindow -PassThru
+          Start-Sleep 5
+          # Mantém processo vivo
+          Start-Process -FilePath $playit -ArgumentList "--region","sao-paulo-br" -NoNewWindow
+
+      - name: Keep Alive
+        shell: pwsh
+        run: |
+          for ($i = 0; $i -lt 118; $i++) {
+            Write-Host "Tick $i"
+            Start-Sleep 60
+          }
